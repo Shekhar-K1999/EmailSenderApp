@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Sender Application</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better aesthetics and responsiveness */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            border: 1px solid #e2e8f0;
+        }
+        input[type="email"],
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        }
+        input[type="email"]:focus,
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #6366f1; /* Indigo 500 */
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); /* Indigo 500 with transparency */
+        }
+        textarea {
+            resize: vertical;
+            min-height: 150px;
+        }
+        button {
+            width: 100%;
+            padding: 12px 20px;
+            background-color: #6366f1; /* Indigo 500 */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease-in-out, transform 0.1s ease-in-out;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+        }
+        button:hover {
+            background-color: #4f46e5; /* Indigo 600 */
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            display: none; /* Hidden by default */
+        }
+        .message.success {
+            background-color: #d1fae5; /* Green 100 */
+            color: #065f46; /* Green 800 */
+            border: 1px solid #34d399; /* Green 400 */
+        }
+        .message.error {
+            background-color: #fee2e2; /* Red 100 */
+            color: #991b1b; /* Red 800 */
+            border: 1px solid #ef4444; /* Red 400 */
+        }
+        .loading {
+            display: none; /* Hidden by default */
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.1rem;
+            color: #6366f1;
+        }
+        .loading::before {
+            content: 'Sending...';
+            display: block;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            button {
+                font-size: 16px;
+                padding: 10px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">Send Email</h2>
+        <form id="emailForm" class="space-y-4">
+            <div>
+                <label for="to" class="block text-sm font-medium text-gray-700 mb-1">To:</label>
+                <input type="email" id="to" name="to" placeholder="recipient@example.com" required class="focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">Subject:</label>
+                <input type="text" id="subject" name="subject" placeholder="Email Subject" required class="focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label for="body" class="block text-sm font-medium text-gray-700 mb-1">Body:</label>
+                <textarea id="body" name="body" placeholder="Your email content here..." required class="focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+            </div>
+            <button type="submit">Send Email</button>
+        </form>
+        <div id="loadingMessage" class="loading"></div>
+        <div id="responseMessage" class="message"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const emailForm = document.getElementById('emailForm');
+            const responseMessage = document.getElementById('responseMessage');
+            const loadingMessage = document.getElementById('loadingMessage');
+
+            emailForm.addEventListener('submit', async (event) => {
+                event.preventDefault(); // Prevent default form submission
+
+                // Clear previous messages
+                responseMessage.style.display = 'none';
+                responseMessage.classList.remove('success', 'error');
+                loadingMessage.style.display = 'block'; // Show loading message
+
+                const to = document.getElementById('to').value;
+                const subject = document.getElementById('subject').value;
+                const body = document.getElementById('body').value;
+
+                // Define the backend API endpoint
+                // IMPORTANT: Replace with your actual Spring Boot backend URL if different
+                const backendUrl = 'http://localhost:8080/api/send-email';
+
+                try {
+                    const response = await fetch(backendUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ to, subject, body }),
+                    });
+
+                    loadingMessage.style.display = 'none'; // Hide loading message
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        responseMessage.textContent = result.message || 'Email sent successfully!';
+                        responseMessage.classList.add('success');
+                        responseMessage.style.display = 'block';
+                        emailForm.reset(); // Clear form fields on success
+                    } else {
+                        const errorData = await response.json();
+                        responseMessage.textContent = errorData.message || 'Failed to send email. Please try again.';
+                        responseMessage.classList.add('error');
+                        responseMessage.style.display = 'block';
+                    }
+                } catch (error) {
+                    loadingMessage.style.display = 'none'; // Hide loading message
+                    console.error('Error sending email:', error);
+                    responseMessage.textContent = 'An error occurred. Could not connect to the server.';
+                    responseMessage.classList.add('error');
+                    responseMessage.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
